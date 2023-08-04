@@ -1,36 +1,125 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-
-/**
- * @param {vscode.ExtensionContext} context
- */
 function activate(context) {
+    console.log('A extensão "Collapse Code Blocks" está ativa.');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "blockdetacherpb" is now active!');
+    let disposable = vscode.commands.registerCommand('extension.collapseBlock', () => {
+        collapseBlock();
+    });
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with  registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('blockdetacherpb.helloWorld', function () {
-		// The code you place here will be executed every time your command is executed
+    context.subscriptions.push(disposable);
 
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from BlockDetacherPB!');
-	});
+    // Registre o comando para expandir o bloco de código
+    disposable = vscode.commands.registerCommand('extension.expandBlock', () => {
+        expandBlock();
+    });
 
-	context.subscriptions.push(disposable);
+    context.subscriptions.push(disposable);
+
+    // Inscreva-se para ouvir os eventos de pressionar tecla
+    context.subscriptions.push(vscode.window.onDidChangeTextEditorSelection(handleSelectionChange));
 }
 
-// This method is called when your extension is deactivated
-function deactivate() {}
+function handleSelectionChange(event) {
+    // Verifique se a seleção está vazia
+    if (!event.selections || event.selections.length === 0) {
+        return;
+    }
+
+    // Obter o editor de texto ativo
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        return;
+    }
+
+    // Obter a posição do cursor atual
+    const cursorPos = event.selections[0].active;
+
+    // Obter o texto da linha onde o cursor está posicionado
+    const lineText = editor.document.lineAt(cursorPos).text;
+
+    // Verifique se a linha contém a palavra "function"
+    if (lineText.includes('function')) {
+        collapseBlock();
+    }
+}
+
+function collapseBlock() {
+    // Obter o editor de texto ativo
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        return;
+    }
+
+    // Obter a posição do cursor atual
+    const cursorPos = editor.selection.active;
+
+    // Obter o número da linha onde o cursor está posicionado
+    const line = cursorPos.line;
+
+    // Obter o início e o final do bloco de código
+    let startLine = line;
+    let endLine = line;
+    while (startLine > 0 && !editor.document.lineAt(startLine).text.includes('{')) {
+        startLine--;
+    }
+    while (endLine < editor.document.lineCount && !editor.document.lineAt(endLine).text.includes('}')) {
+        endLine++;
+    }
+
+    // Verifique se encontrou as chaves de abertura e fechamento
+    if (startLine >= 0 && endLine < editor.document.lineCount && startLine < endLine) {
+        // Ocultar as linhas do bloco de código, exceto a primeira
+        const range = new vscode.Range(startLine + 1, 0, endLine, 0);
+        editor.edit(editBuilder => {
+            editBuilder.replace(range, '');
+        });
+    }
+}
+
+function expandBlock() {
+    // Obter o editor de texto ativo
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        return;
+    }
+
+    // Obter a posição do cursor atual
+    const cursorPos = editor.selection.active;
+
+    // Obter o número da linha onde o cursor está posicionado
+    const line = cursorPos.line;
+
+    // Obter o início e o final do bloco de código
+    let startLine = line;
+    let endLine = line;
+    while (startLine > 0 && !editor.document.lineAt(startLine).text.includes('forward prototypes')) {
+        startLine--;
+    }
+    while (endLine < editor.document.lineCount && !editor.document.lineAt(endLine).text.includes('end prototypes')) {
+        endLine++;
+    }
+
+    // Verifique se encontrou as chaves de abertura e fechamento
+    if (startLine >= 0 && endLine < editor.document.lineCount && startLine < endLine) {
+        // Obter o texto completo do bloco de código
+        let blockText = '';
+        for (let i = startLine + 1; i < endLine; i++) {
+            blockText += editor.document.lineAt(i).text + '\n';
+        }
+
+        // Inserir o texto de volta no editor
+        editor.edit(editBuilder => {
+            editBuilder.insert(new vscode.Position(startLine + 1, 0), blockText);
+        });
+    }
+}
+
+function deactivate() {
+    // Nada a fazer aqui
+}
 
 module.exports = {
-	activate,
-	deactivate
-}
+    activate,
+    deactivate
+};
